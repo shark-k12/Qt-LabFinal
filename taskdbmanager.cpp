@@ -113,3 +113,32 @@ bool TaskDBManager::isConnected() const
     return m_db.isOpen();
 }
 
+QList<Task> TaskDBManager::getAllTasks()
+{
+    QList<Task> tasks;
+    if (!isConnected()) return tasks;
+
+    QSqlQuery query(m_db);
+    if (!query.exec("SELECT * FROM tasks ORDER BY update_time DESC")) {
+        qCritical() << "查询tasks表失败：" << query.lastError().text();
+        return tasks;
+    }
+
+    while (query.next()) {
+        QVariantMap map;
+        map["id"] = query.value("id");
+        map["title"] = query.value("title");
+        map["category"] = query.value("category");
+        map["priority"] = query.value("priority");
+        map["deadline"] = query.value("deadline");
+        map["is_completed"] = query.value("is_completed");
+        map["description"] = query.value("description");
+        map["create_time"] = query.value("create_time");
+        map["update_time"] = query.value("update_time");
+        tasks.append(Task::fromMap(map));
+    }
+
+    qDebug() << "读取到的任务数：" << tasks.size();
+    return tasks;
+}
+

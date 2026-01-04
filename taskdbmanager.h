@@ -71,6 +71,8 @@ public:
     // 数据库连接状态
     bool isConnected() const;
 
+    QList<Task> getAllTasks();
+
 
 private:
     static TaskDBManager* m_instance;  // 单例实例

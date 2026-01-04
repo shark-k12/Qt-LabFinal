@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "aboutdialog.h"
 #include "taskdbManager.h"
+#include "taskmodel.h"
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
@@ -128,12 +129,6 @@ void MainWindow::initCentralWidget()
     m_taskTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_taskTableView->horizontalHeader()->setStretchLastSection(true);
     m_taskTableView->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    // 设置表头
-    QStringList headers = {"ID", "任务标题", "分类", "优先级", "截止时间", "完成状态", "描述"};
-    // 临时创建空Model用于显示表头
-    auto *tempModel = new QStandardItemModel(this);
-    tempModel->setHorizontalHeaderLabels(headers);
-    m_taskTableView->setModel(tempModel);
 
 
     // --------------------- 右侧：统计面板 ---------------------
