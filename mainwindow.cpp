@@ -1,4 +1,6 @@
 #include "mainwindow.h"
+#include "aboutdialog.h"
+#include "taskdbManager.h"
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
@@ -36,6 +38,11 @@ MainWindow::MainWindow(QWidget *parent)
     initToolBar();
     initCentralWidget();
     initStatusBar();
+
+    // MainWindow.cpp 构造函数中
+    if (!TaskDBManager::getInstance()->isConnected()) {
+        QMessageBox::critical(this, "错误", "数据库连接失败！");
+    }
 }
 
 MainWindow::~MainWindow() = default;

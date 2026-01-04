@@ -1,7 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include<aboutdialog.h>
 #include <QMainWindow>
 #include <QWidget>
 #include <QHBoxLayout>
