@@ -62,6 +62,7 @@ private:
 
     // 初始化表结构
     bool initTables();
+    bool isTableExists(const QString& tableName);
 
 public:
     // 单例获取
