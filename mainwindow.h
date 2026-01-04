@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include<aboutdialog.h>
 #include <QMainWindow>
 #include <QWidget>
 #include <QHBoxLayout>
@@ -33,6 +34,10 @@ private:
     void initCentralWidget();//布局
     void initStatusBar();
     void initStatPanel();
+
+private slots:
+    void onAbout();
 };
+
 
 #endif // MAINWINDOW_H

@@ -65,7 +65,9 @@ void MainWindow::initMenuBar()
 
     // 帮助菜单
     QMenu *helpMenu = menuBar->addMenu(tr("帮助(&H)"));
-    helpMenu->addAction(tr("关于(&A)"));
+    QAction *aboutAct = helpMenu->addAction(tr("关于(&A)"));
+
+    connect(aboutAct, &QAction::triggered, this, &MainWindow::onAbout);
 }
 
 
@@ -174,6 +176,12 @@ void MainWindow::initStatPanel()
 
     // 5. 占位符（拉伸底部）
     statLayout->addStretch();
+}
+
+void MainWindow::onAbout()
+{
+    AboutDialog dlg(this);
+    dlg.exec();
 }
 
 // 初始化状态栏
