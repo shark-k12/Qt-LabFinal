@@ -2,18 +2,13 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QWidget>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
-#include <QListWidget>
+#include <QSqlTableModel>
 #include <QTableView>
-#include <QToolBar>
-#include <QStatusBar>
+#include <QSplitter>
+#include <QListWidget>
+#include <QProgressBar>
 #include <QChart>
 #include <QChartView>
-#include <QSplitter>
-#include <QLabel>
-#include <QProgressBar>
 
 class MainWindow : public QMainWindow
 {
@@ -24,15 +19,17 @@ public:
     ~MainWindow() override;
 
 private:
+    QSqlTableModel *m_taskModel;
     QListWidget *m_categoryList;    // 左侧分类导航
     QTableView *m_taskTableView;    // 中间任务列表
     QWidget *m_statWidget;          // 右侧统计面板
 
-    void initMenuBar();
-    void initToolBar();
-    void initCentralWidget();//布局
-    void initStatusBar();
-    void initStatPanel();
+    void initUI();                        // 整体UI
+    void initMenuBar();                   // 菜单栏
+    void initToolBar();                   // 工具栏
+    void initTaskTable();                 // 任务表格
+    void initCategoryList();              // 分类导航
+    void initStatPanel();                 // 统计面板
 
 private slots:
     void onAbout();

@@ -1,18 +1,19 @@
 #include "mainwindow.h"
-#include "aboutdialog.h"
 #include "taskdbManager.h"
-#include "taskmodel.h"
-#include <QMenuBar>
-#include <QMenu>
-#include <QAction>
-#include <QAction>
-#include <QHeaderView>
-#include <QPieSeries>
-#include <QVBoxLayout>
+#include "aboutdialog.h"
 #include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QWidget>
+#include <QHeaderView>
+#include <QMessageBox>
+#include <QMenuBar>
+#include <QToolBar>
+#include <QStatusBar>
+#include <QLabel>
 #include <QPushButton>
-#include <QApplication>
-#include <QStandardItemModel>
+#include <QFileDialog>
+#include <QPieSeries>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -35,15 +36,56 @@ MainWindow::MainWindow(QWidget *parent)
         QSplitter::handle { background-color: #E0E0E0; }
     )");
 
+    initUI();
     initMenuBar();
     initToolBar();
-    initCentralWidget();
-    initStatusBar();
+    initTaskTable();
+    initCategoryList();
+    initStatPanel();
 
-    // MainWindow.cpp 构造函数中
     if (!TaskDBManager::getInstance()->isConnected()) {
         QMessageBox::critical(this, "错误", "数据库连接失败！");
     }
+}
+
+void MainWindow::initUI()
+{
+    // 主布局
+    QWidget *centralWidget = new QWidget(this);
+    QHBoxLayout *mainLayout = new QHBoxLayout(centralWidget);
+    setCentralWidget(centralWidget);
+
+    // 分割器（左：分类，中：表格，右：统计）
+    QSplitter *splitter = new QSplitter(Qt::Horizontal, centralWidget);
+    splitter->setHandleWidth(2);
+    mainLayout->addWidget(splitter);
+
+    // 1. 左侧分类导航
+    m_categoryList = new QListWidget(this);
+    m_categoryList->setMinimumWidth(150);
+    splitter->addWidget(m_categoryList);
+
+    // 2. 中间任务表格
+    m_taskTableView = new QTableView(this);
+    splitter->addWidget(m_taskTableView);
+
+    // 3. 右侧统计面板
+    m_statWidget = new QWidget(this);
+    m_statWidget->setMinimumWidth(300);
+    splitter->addWidget(m_statWidget);
+
+    // 表格基础配置
+    m_taskTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_taskTableView->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_taskTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_taskTableView->horizontalHeader()->setStretchLastSection(true);
+    m_taskTableView->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+
+    // 状态栏
+    QStatusBar *statusBar = new QStatusBar(this);
+    setStatusBar(statusBar);
+    statusBar->addWidget(new QLabel("数据库已连接", this));
+    statusBar->addPermanentWidget(new QLabel("总任务：0 | 未完成：0", this));
 }
 
 MainWindow::~MainWindow() = default;
@@ -95,48 +137,11 @@ void MainWindow::initToolBar()
     toolBar->addAction(QIcon::fromTheme("document-export"), tr("导出报表"));
 }
 
-
-void MainWindow::initCentralWidget()
+void MainWindow::initTaskTable()
 {
-    // 核心容器
-    QWidget *centralWidget = new QWidget(this);
-    QHBoxLayout *centralLayout = new QHBoxLayout(centralWidget);
-    centralLayout->setSpacing(5);
-    centralLayout->setContentsMargins(5, 5, 5, 5);
-    setCentralWidget(centralWidget);
 
-    // 分割器（支持拖拽调整宽度）
-    QSplitter *splitter = new QSplitter(Qt::Horizontal, centralWidget);
-    splitter->setHandleWidth(2);
-    centralLayout->addWidget(splitter);
-
-    // --------------------- 左侧：分类导航 ---------------------
-    m_categoryList = new QListWidget(splitter);
-    m_categoryList->setMinimumWidth(150);
-    m_categoryList->setMaximumWidth(200);
-    QStringList categories = {"全部任务", "未分类", "工作", "生活", "学习", "其他"};
-    m_categoryList->addItems(categories);
-    // 默认选中第一个
-    m_categoryList->setCurrentRow(0);
-
-
-
-    // --------------------- 中间：任务列表 ---------------------
-    m_taskTableView = new QTableView(splitter);
-    // 表格配置
-    m_taskTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_taskTableView->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_taskTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_taskTableView->horizontalHeader()->setStretchLastSection(true);
-    m_taskTableView->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-
-
-    // --------------------- 右侧：统计面板 ---------------------
-    m_statWidget = new QWidget(splitter);
-    m_statWidget->setMinimumWidth(200);
-    m_statWidget->setMaximumWidth(300);
-    initStatPanel();
 }
+
 
 // 初始化右侧统计面板
 void MainWindow::initStatPanel()
