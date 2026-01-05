@@ -65,11 +65,11 @@ private:
     bool isTableExists(const QString& tableName);
 
 public:
-    // 单例获取
-    static TaskDBManager* getInstance();
+    static TaskDBManager* getInstance();// 单例获取
+    bool isConnected() const;// 数据库连接状态
+    QSqlDatabase getDB(){return m_db;}
 
-    // 数据库连接状态
-    bool isConnected() const;
+
 
     QList<Task> getAllTasks();
 
@@ -78,4 +78,4 @@ private:
     static TaskDBManager* m_instance;  // 单例实例
 };
 
-#endif // TASKDBMANAGER_H
+#endif

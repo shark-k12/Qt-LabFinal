@@ -10,6 +10,7 @@ TaskDBManager::TaskDBManager(QObject *parent) : QObject(parent)
     m_db = QSqlDatabase::addDatabase("QSQLITE");
     QString dbPath = "E:/qt_test/QtFinal/QtFinal.db";
     m_db.setDatabaseName(dbPath);
+    qDebug() << "程序实际连接的数据库路径：" << dbPath;
 
     // 打开数据库
     if (!m_db.open()) {
@@ -119,7 +120,7 @@ QList<Task> TaskDBManager::getAllTasks()
     if (!isConnected()) return tasks;
 
     QSqlQuery query(m_db);
-    if (!query.exec("SELECT * FROM tasks ORDER BY update_time DESC")) {
+    if (!query.exec("SELECT * FROM tasks")) {
         qCritical() << "查询tasks表失败：" << query.lastError().text();
         return tasks;
     }

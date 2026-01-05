@@ -12,14 +12,12 @@ SOURCES += \
     aboutdialog.cpp \
     main.cpp \
     mainwindow.cpp \
-    taskdbmanager.cpp \
-    taskmodel.cpp
+    taskdbmanager.cpp
 
 HEADERS += \
     aboutdialog.h \
     mainwindow.h \
-    taskdbmanager.h \
-    taskmodel.h
+    taskdbmanager.h
 
 FORMS += \
     aboutdialog.ui \

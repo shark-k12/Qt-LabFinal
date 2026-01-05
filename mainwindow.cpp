@@ -62,7 +62,8 @@ void MainWindow::initUI()
 
     // 1. 左侧分类导航
     m_categoryList = new QListWidget(this);
-    m_categoryList->setMinimumWidth(150);
+    m_categoryList->setMinimumWidth(70);
+    m_categoryList->setMaximumWidth(100);
     splitter->addWidget(m_categoryList);
 
     // 2. 中间任务表格
@@ -139,9 +140,45 @@ void MainWindow::initToolBar()
 
 void MainWindow::initTaskTable()
 {
+    // 使用QSqlTableModel绑定数据库表
+    m_taskModel = new QSqlTableModel(this, TaskDBManager::getInstance()->getDB());
+    m_taskModel->setTable("tasks");
+    m_taskModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+    m_taskModel->setSort(m_taskModel->fieldIndex("update_time"), Qt::DescendingOrder);
+
+    // 自定义表头
+    m_taskModel->setHeaderData(m_taskModel->fieldIndex("id"), Qt::Horizontal, "ID");
+    m_taskModel->setHeaderData(m_taskModel->fieldIndex("title"), Qt::Horizontal, "任务标题");
+    m_taskModel->setHeaderData(m_taskModel->fieldIndex("category"), Qt::Horizontal, "分类");
+    m_taskModel->setHeaderData(m_taskModel->fieldIndex("priority"), Qt::Horizontal, "优先级");
+    m_taskModel->setHeaderData(m_taskModel->fieldIndex("deadline"), Qt::Horizontal, "截止时间");
+    m_taskModel->setHeaderData(m_taskModel->fieldIndex("is_completed"), Qt::Horizontal, "完成状态");
+    m_taskModel->setHeaderData(m_taskModel->fieldIndex("description"), Qt::Horizontal, "描述");
+
+    if(m_taskModel->select()){
+        qDebug() << "实际执行的 SQL：" << m_taskModel->query().lastQuery();
+        qDebug() << "表格加载行数：" << m_taskModel->rowCount();
+    }
+
+    // 隐藏不需要的字段
+    m_taskModel->setHeaderData(m_taskModel->fieldIndex("create_time"), Qt::Horizontal, "创建时间");
+    m_taskModel->setHeaderData(m_taskModel->fieldIndex("update_time"), Qt::Horizontal, "更新时间");
+    m_taskTableView->hideColumn(m_taskModel->fieldIndex("create_time"));
+    m_taskTableView->hideColumn(m_taskModel->fieldIndex("update_time"));
+
+    // 绑定到表格
+    m_taskTableView->setModel(m_taskModel);
+
 
 }
 
+void MainWindow::initCategoryList()
+{
+    // 添加分类项
+    m_categoryList->addItems({"全部任务", "未分类", "工作", "生活", "学习", "其他"});
+    m_categoryList->setCurrentRow(0);
+
+}
 
 // 初始化右侧统计面板
 void MainWindow::initStatPanel()
@@ -185,23 +222,12 @@ void MainWindow::initStatPanel()
     statLayout->addStretch();
 }
 
+
+
 void MainWindow::onAbout()
 {
     AboutDialog dlg(this);
     dlg.exec();
 }
 
-// 初始化状态栏
-void MainWindow::initStatusBar()
-{
-    QStatusBar *statusBar = this->statusBar();
 
-    // 左侧：数据库状态
-    QLabel *dbStatusLabel = new QLabel(tr("数据库已连接"), statusBar);
-    dbStatusLabel->setStyleSheet("color: #4CAF50;");
-    statusBar->addWidget(dbStatusLabel);
-
-    // 右侧：任务统计
-    QLabel *taskStatLabel = new QLabel(tr("总任务：0 | 未完成：0"), statusBar);
-    statusBar->addPermanentWidget(taskStatLabel);
-}
