@@ -145,6 +145,10 @@ void MainWindow::initTaskTable()
     m_taskModel->setTable("tasks");
     m_taskModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
     m_taskModel->setSort(m_taskModel->fieldIndex("update_time"), Qt::DescendingOrder);
+    if(m_taskModel->select()){
+        qDebug() << "实际执行的 SQL：" << m_taskModel->query().lastQuery();
+        qDebug() << "表格加载行数：" << m_taskModel->rowCount();
+    }
 
     // 自定义表头
     m_taskModel->setHeaderData(m_taskModel->fieldIndex("id"), Qt::Horizontal, "ID");
@@ -155,21 +159,12 @@ void MainWindow::initTaskTable()
     m_taskModel->setHeaderData(m_taskModel->fieldIndex("is_completed"), Qt::Horizontal, "完成状态");
     m_taskModel->setHeaderData(m_taskModel->fieldIndex("description"), Qt::Horizontal, "描述");
 
-    if(m_taskModel->select()){
-        qDebug() << "实际执行的 SQL：" << m_taskModel->query().lastQuery();
-        qDebug() << "表格加载行数：" << m_taskModel->rowCount();
-    }
-
-    // 隐藏不需要的字段
-    m_taskModel->setHeaderData(m_taskModel->fieldIndex("create_time"), Qt::Horizontal, "创建时间");
-    m_taskModel->setHeaderData(m_taskModel->fieldIndex("update_time"), Qt::Horizontal, "更新时间");
-    m_taskTableView->hideColumn(m_taskModel->fieldIndex("create_time"));
-    m_taskTableView->hideColumn(m_taskModel->fieldIndex("update_time"));
-
     // 绑定到表格
     m_taskTableView->setModel(m_taskModel);
 
-
+    // 隐藏不需要的字段
+    m_taskTableView->hideColumn(m_taskModel->fieldIndex("create_time"));
+    m_taskTableView->hideColumn(m_taskModel->fieldIndex("update_time"));
 }
 
 void MainWindow::initCategoryList()
