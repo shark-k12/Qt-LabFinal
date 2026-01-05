@@ -70,9 +70,10 @@ public:
     QSqlDatabase getDB(){return m_db;}
 
     bool addTask(Task& task);
-
-
+    bool updateTask(const Task& task);
+    bool deleteTask(int taskId);
     QList<Task> getAllTasks();
+    Task getTaskById(int taskId);
 
 
 private:

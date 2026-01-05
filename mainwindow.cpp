@@ -107,8 +107,8 @@ void MainWindow::initMenuBar()
     // 编辑菜单
     QMenu *editMenu = menuBar->addMenu(tr("编辑(&E)"));
     QAction *addAct = editMenu->addAction("新增任务(&N)");
-    editMenu->addAction(tr("修改任务(&M)"));
-    editMenu->addAction(tr("删除任务(&D)"));
+    QAction *editAct = editMenu->addAction("编辑任务(&M)");
+    QAction *deleteAct = editMenu->addAction("删除任务");
 
     // 设置菜单
     QMenu *settingMenu = menuBar->addMenu(tr("设置(&S)"));
@@ -120,6 +120,8 @@ void MainWindow::initMenuBar()
     QAction *aboutAct = helpMenu->addAction(tr("关于(&A)"));
 
     connect(addAct, &QAction::triggered, this, &MainWindow::onAddTask);
+    connect(editAct, &QAction::triggered, this, &MainWindow::onEditTask);
+    connect(deleteAct, &QAction::triggered, this, &MainWindow::onDeleteTask);
     connect(aboutAct, &QAction::triggered, this, &MainWindow::onAbout);
 }
 
@@ -130,14 +132,18 @@ void MainWindow::initToolBar()
     toolBar->setIconSize(QSize(24, 24)); // 按钮图标大小
 
     // 工具栏按钮（使用Qt内置图标，无图标则显示文字）
-    toolBar->addAction(QIcon::fromTheme("list-add"), tr("新增任务"));
-    toolBar->addAction(QIcon::fromTheme("list-remove"), tr("删除任务"));
-    toolBar->addAction(QIcon::fromTheme("document-edit"), tr("修改任务"));
+    QAction *addAct = toolBar->addAction(QIcon::fromTheme("list-add"), tr("新增任务"));
+    QAction *deleteAct = toolBar->addAction(QIcon::fromTheme("list-remove"), tr("删除任务"));
+    QAction *editAct = toolBar->addAction("编辑任务");
     toolBar->addSeparator(); // 分隔线
     toolBar->addAction(QIcon::fromTheme("view-sort"), tr("按优先级排序"));
     toolBar->addAction(QIcon::fromTheme("view-refresh"), tr("刷新"));
     toolBar->addSeparator();
     toolBar->addAction(QIcon::fromTheme("document-export"), tr("导出报表"));
+
+    connect(addAct, &QAction::triggered, this, &MainWindow::onAddTask);
+    connect(editAct, &QAction::triggered, this, &MainWindow::onEditTask);
+    connect(deleteAct, &QAction::triggered, this, &MainWindow::onDeleteTask);
 }
 
 void MainWindow::initTaskTable()
@@ -226,10 +232,52 @@ void MainWindow::onAddTask()
         Task task = dlg.getTask();
         if (TaskDBManager::getInstance()->addTask(task)) {
             QMessageBox::information(this, "提示", "任务新增成功！");
-            onRefresh(); // 刷新数据
+            onRefresh();
         } else {
             QMessageBox::critical(this, "错误", "任务新增失败！");
         }
+    }
+}
+
+void MainWindow::onEditTask()
+{
+    QModelIndex index = m_taskTableView->currentIndex();
+    if (!index.isValid()) {
+        QMessageBox::warning(this, "提示", "请先选中要编辑的任务！");
+        return;
+    }
+
+    int taskId = m_taskModel->data(m_taskModel->index(index.row(), 0)).toInt();
+    Task task = TaskDBManager::getInstance()->getTaskById(taskId);
+
+    TaskDialog dlg(true, task); // 编辑模式
+    if (dlg.exec() == QDialog::Accepted) {
+        Task updatedTask = dlg.getTask();
+        if (TaskDBManager::getInstance()->updateTask(updatedTask)) {
+            QMessageBox::information(this, "提示", "任务编辑成功！");
+            onRefresh();
+        }
+    }
+}
+
+void MainWindow::onDeleteTask()
+{
+    QModelIndex curIndex = m_taskTableView->currentIndex();
+    if (!curIndex.isValid()) {
+        QMessageBox::warning(this, "提示", "请先选中要删除的任务！");
+        return;
+    }
+
+    if (QMessageBox::question(this, "确认", "是否确定删除该任务？") != QMessageBox::Yes) {
+        return;
+    }
+
+    int taskId = m_taskModel->data(m_taskModel->index(curIndex.row(), m_taskModel->fieldIndex("id"))).toInt();
+    if (TaskDBManager::getInstance()->deleteTask(taskId)) {
+        QMessageBox::information(this, "提示", "任务删除成功！");
+        onRefresh();
+    } else {
+        QMessageBox::critical(this, "错误", "任务删除失败！");
     }
 }
 

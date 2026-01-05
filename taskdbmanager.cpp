@@ -114,7 +114,6 @@ bool TaskDBManager::isConnected() const
     return m_db.isOpen();
 }
 
-// 新增任务
 bool TaskDBManager::addTask(Task& task)
 {
     if (!isConnected()) return false;
@@ -148,6 +147,54 @@ bool TaskDBManager::addTask(Task& task)
     return true;
 }
 
+bool TaskDBManager::updateTask(const Task& task)
+{
+    if (!isConnected() || task.id < 0) return false;
+
+    Task updatedTask = task;
+    updatedTask.updateTime = QDateTime::currentDateTime();
+
+    QSqlQuery query(m_db);
+    query.prepare(R"(
+        UPDATE tasks SET
+            title = :title, category = :category, priority = :priority,
+            deadline = :deadline, is_completed = :is_completed, description = :description,
+            update_time = :update_time
+        WHERE id = :id
+    )");
+    QVariantMap taskMap = updatedTask.toMap();
+    query.bindValue(":title", taskMap["title"]);
+    query.bindValue(":category", taskMap["category"]);
+    query.bindValue(":priority", taskMap["priority"]);
+    query.bindValue(":deadline", taskMap["deadline"]);
+    query.bindValue(":is_completed", taskMap["is_completed"]);
+    query.bindValue(":description", taskMap["description"]);
+    query.bindValue(":update_time", taskMap["update_time"]);
+    query.bindValue(":id", task.id);
+
+    if (!query.exec()) {
+        qCritical() << "更新任务失败：" << query.lastError().text();
+        return false;
+    }
+    qDebug() << "更新任务成功，ID：" << task.id;
+    return query.numRowsAffected() > 0;
+}
+
+bool TaskDBManager::deleteTask(int taskId)
+{
+    if (!isConnected() || taskId < 0) return false;
+
+    QSqlQuery query(m_db);
+    query.prepare("DELETE FROM tasks WHERE id = :id");
+    query.bindValue(":id", taskId);
+    if (!query.exec()) {
+        qCritical() << "删除任务失败：" << query.lastError().text();
+        return false;
+    }
+    qDebug() << "删除任务成功，ID：" << taskId;
+    return query.numRowsAffected() > 0;
+}
+
 QList<Task> TaskDBManager::getAllTasks()
 {
     QList<Task> tasks;
@@ -177,3 +224,28 @@ QList<Task> TaskDBManager::getAllTasks()
     return tasks;
 }
 
+Task TaskDBManager::getTaskById(int taskId)
+{
+    Task task;
+    if (!isConnected() || taskId < 0) return task;
+
+    QSqlQuery query(m_db);
+    query.prepare("SELECT * FROM tasks WHERE id = :id");
+    query.bindValue(":id", taskId);
+    if (!query.exec() || !query.next()) {
+        qWarning() << "未找到ID为" << taskId << "的任务";
+        return task;
+    }
+
+    QVariantMap map;
+    map["id"] = query.value("id");
+    map["title"] = query.value("title");
+    map["category"] = query.value("category");
+    map["priority"] = query.value("priority");
+    map["deadline"] = query.value("deadline");
+    map["is_completed"] = query.value("is_completed");
+    map["description"] = query.value("description");
+    map["create_time"] = query.value("create_time");
+    map["update_time"] = query.value("update_time");
+    return Task::fromMap(map);
+}

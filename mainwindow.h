@@ -33,7 +33,9 @@ private:
 
 private slots:
     void onAddTask();
-    void onRefresh();                     // 刷新数据
+    void onEditTask();
+    void onDeleteTask();
+    void onRefresh();
     void onAbout();
 
 };
