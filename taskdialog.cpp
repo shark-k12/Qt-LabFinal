@@ -1,6 +1,7 @@
 #include "taskdialog.h"
 #include "ui_taskdialog.h"
 #include <QMessageBox>
+#include <QDateTime>
 
 // 构造函数
 TaskDialog::TaskDialog(bool isEdit, const Task& task, QWidget *parent)
@@ -10,8 +11,10 @@ TaskDialog::TaskDialog(bool isEdit, const Task& task, QWidget *parent)
     setWindowTitle(m_isEdit ? "编辑任务" : "新增任务");
 
 
-    ui->categories->addItems({"未分类", "工作", "生活", "学习", "行政"});
+    ui->categories->addItems({"未分类", "工作", "生活", "学习", "其他"});
     ui->priority->addItems({"1", "2", "3", "4", "5"});
+
+    initDateTimeEdit();
 
     if (m_isEdit) {
         ui->title->setText(m_task.title);
@@ -26,6 +29,20 @@ TaskDialog::TaskDialog(bool isEdit, const Task& task, QWidget *parent)
 TaskDialog::~TaskDialog()
 {
     delete ui;
+}
+
+void TaskDialog::initDateTimeEdit()
+{
+    ui->deadline->setCalendarPopup(true);
+
+    if (!m_isEdit) {
+        QDateTime defaultTime = QDateTime::currentDateTime();
+        ui->deadline->setDateTime(defaultTime);
+    }
+
+    ui->deadline->setDisplayFormat("yyyy-MM-dd HH:mm:ss");
+
+    ui->deadline->setMinimumDateTime(QDateTime::currentDateTime());
 }
 
 Task TaskDialog::getTask() const

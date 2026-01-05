@@ -29,6 +29,7 @@ private:
     Ui::TaskDialog *ui;
     bool m_isEdit;
     Task m_task;
+    void initDateTimeEdit();
 };
 
 #endif
