@@ -114,6 +114,40 @@ bool TaskDBManager::isConnected() const
     return m_db.isOpen();
 }
 
+// 新增任务
+bool TaskDBManager::addTask(Task& task)
+{
+    if (!isConnected()) return false;
+
+    task.createTime = QDateTime::currentDateTime();
+    task.updateTime = task.createTime;
+
+    QSqlQuery query(m_db);
+    query.prepare(R"(
+        INSERT INTO tasks (title, category, priority, deadline, is_completed, description, create_time, update_time)
+        VALUES (:title, :category, :priority, :deadline, :is_completed, :description, :create_time, :update_time)
+    )");
+
+    QVariantMap taskMap = task.toMap();
+    query.bindValue(":title", taskMap["title"]);
+    query.bindValue(":category", taskMap["category"]);
+    query.bindValue(":priority", taskMap["priority"]);
+    query.bindValue(":deadline", taskMap["deadline"]);
+    query.bindValue(":is_completed", taskMap["is_completed"]);
+    query.bindValue(":description", taskMap["description"]);
+    query.bindValue(":create_time", taskMap["create_time"]);
+    query.bindValue(":update_time", taskMap["update_time"]);
+
+    if (!query.exec()) {
+        qCritical() << "新增任务失败：" << query.lastError().text();
+        return false;
+    }
+
+    task.id = query.lastInsertId().toInt();
+    qDebug() << "新增任务成功，ID：" << task.id;
+    return true;
+}
+
 QList<Task> TaskDBManager::getAllTasks()
 {
     QList<Task> tasks;

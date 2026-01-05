@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "taskdbManager.h"
+#include "taskdialog.h"
 #include "aboutdialog.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -105,7 +106,7 @@ void MainWindow::initMenuBar()
 
     // 编辑菜单
     QMenu *editMenu = menuBar->addMenu(tr("编辑(&E)"));
-    editMenu->addAction(tr("新增任务(&N)"));
+    QAction *addAct = editMenu->addAction("新增任务(&N)");
     editMenu->addAction(tr("修改任务(&M)"));
     editMenu->addAction(tr("删除任务(&D)"));
 
@@ -118,6 +119,7 @@ void MainWindow::initMenuBar()
     QMenu *helpMenu = menuBar->addMenu(tr("帮助(&H)"));
     QAction *aboutAct = helpMenu->addAction(tr("关于(&A)"));
 
+    connect(addAct, &QAction::triggered, this, &MainWindow::onAddTask);
     connect(aboutAct, &QAction::triggered, this, &MainWindow::onAbout);
 }
 
@@ -215,6 +217,25 @@ void MainWindow::initStatPanel()
 
     // 5. 占位符（拉伸底部）
     statLayout->addStretch();
+}
+
+void MainWindow::onAddTask()
+{
+    TaskDialog dlg(false);
+    if (dlg.exec() == QDialog::Accepted) {
+        Task task = dlg.getTask();
+        if (TaskDBManager::getInstance()->addTask(task)) {
+            QMessageBox::information(this, "提示", "任务新增成功！");
+            onRefresh(); // 刷新数据
+        } else {
+            QMessageBox::critical(this, "错误", "任务新增失败！");
+        }
+    }
+}
+
+void MainWindow::onRefresh()
+{
+    m_taskModel->select();
 }
 
 

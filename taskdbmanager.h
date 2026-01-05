@@ -69,6 +69,7 @@ public:
     bool isConnected() const;// 数据库连接状态
     QSqlDatabase getDB(){return m_db;}
 
+    bool addTask(Task& task);
 
 
     QList<Task> getAllTasks();

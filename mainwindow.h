@@ -32,7 +32,10 @@ private:
     void initStatPanel();                 // 统计面板
 
 private slots:
+    void onAddTask();
+    void onRefresh();                     // 刷新数据
     void onAbout();
+
 };
 
 
