@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "taskdbmanager.h"
 #include <QMainWindow>
 #include <QSqlTableModel>
 #include <QTableView>
@@ -31,12 +32,17 @@ private:
     void initCategoryList();              // 分类导航
     void initStatPanel();                 // 统计面板
 
+    void updateStatusBar(int total, int unfinished);
+    int countUnfinished(const QList<Task>& tasks);
+
 private slots:
     void onAddTask();
     void onEditTask();
     void onDeleteTask();
+    void onSortByPriority();
     void onRefresh();
     void onAbout();
+    void onCategoryChanged(const QString& category);
 
 };
 

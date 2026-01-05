@@ -86,8 +86,14 @@ void MainWindow::initUI()
     // 状态栏
     QStatusBar *statusBar = new QStatusBar(this);
     setStatusBar(statusBar);
-    statusBar->addWidget(new QLabel("数据库已连接", this));
-    statusBar->addPermanentWidget(new QLabel("总任务：0 | 未完成：0", this));
+
+    QLabel *dbStatusLabel = new QLabel("数据库已连接", this);
+    dbStatusLabel->setObjectName("dbStatusLabel");
+    statusBar->addWidget(dbStatusLabel);
+
+    QLabel *taskStatLabel = new QLabel("总任务：0 | 未完成：0", this);
+    taskStatLabel->setObjectName("taskStatLabel");
+    statusBar->addPermanentWidget(taskStatLabel);
 }
 
 MainWindow::~MainWindow() = default;
@@ -113,7 +119,7 @@ void MainWindow::initMenuBar()
     // 设置菜单
     QMenu *settingMenu = menuBar->addMenu(tr("设置(&S)"));
     settingMenu->addAction(tr("提醒阈值设置(&R)"));
-    settingMenu->addAction(tr("优先级设置(&P)"));
+    QAction *sortAct = settingMenu->addAction("按优先级排序(&P)");
 
     // 帮助菜单
     QMenu *helpMenu = menuBar->addMenu(tr("帮助(&H)"));
@@ -122,6 +128,7 @@ void MainWindow::initMenuBar()
     connect(addAct, &QAction::triggered, this, &MainWindow::onAddTask);
     connect(editAct, &QAction::triggered, this, &MainWindow::onEditTask);
     connect(deleteAct, &QAction::triggered, this, &MainWindow::onDeleteTask);
+    connect(sortAct, &QAction::triggered, this, &MainWindow::onSortByPriority);
     connect(aboutAct, &QAction::triggered, this, &MainWindow::onAbout);
 }
 
@@ -136,7 +143,7 @@ void MainWindow::initToolBar()
     QAction *deleteAct = toolBar->addAction(QIcon::fromTheme("list-remove"), tr("删除任务"));
     QAction *editAct = toolBar->addAction("编辑任务");
     toolBar->addSeparator(); // 分隔线
-    toolBar->addAction(QIcon::fromTheme("view-sort"), tr("按优先级排序"));
+    QAction *sortAct = toolBar->addAction("按优先级排序");
     toolBar->addAction(QIcon::fromTheme("view-refresh"), tr("刷新"));
     toolBar->addSeparator();
     toolBar->addAction(QIcon::fromTheme("document-export"), tr("导出报表"));
@@ -144,6 +151,7 @@ void MainWindow::initToolBar()
     connect(addAct, &QAction::triggered, this, &MainWindow::onAddTask);
     connect(editAct, &QAction::triggered, this, &MainWindow::onEditTask);
     connect(deleteAct, &QAction::triggered, this, &MainWindow::onDeleteTask);
+    connect(sortAct, &QAction::triggered, this, &MainWindow::onSortByPriority);
 }
 
 void MainWindow::initTaskTable()
@@ -177,10 +185,10 @@ void MainWindow::initTaskTable()
 
 void MainWindow::initCategoryList()
 {
-    // 添加分类项
     m_categoryList->addItems({"全部任务", "未分类", "工作", "生活", "学习", "其他"});
     m_categoryList->setCurrentRow(0);
 
+    connect(m_categoryList, &QListWidget::currentTextChanged, this, &MainWindow::onCategoryChanged);
 }
 
 // 初始化右侧统计面板
@@ -223,6 +231,23 @@ void MainWindow::initStatPanel()
 
     // 5. 占位符（拉伸底部）
     statLayout->addStretch();
+}
+
+void MainWindow::updateStatusBar(int total, int unfinished)
+{
+    QLabel *taskStatLabel = statusBar()->findChild<QLabel*>("taskStatLabel");
+    if (taskStatLabel) {
+        taskStatLabel->setText(QString("总任务：%1 | 未完成：%2").arg(total).arg(unfinished));
+    }
+}
+
+int MainWindow::countUnfinished(const QList<Task>& tasks)
+{
+    int count = 0;
+    for (const Task& task : tasks) {
+        if (!task.isCompleted) count++;
+    }
+    return count;
 }
 
 void MainWindow::onAddTask()
@@ -281,6 +306,12 @@ void MainWindow::onDeleteTask()
     }
 }
 
+void MainWindow::onSortByPriority()
+{
+    m_taskModel->setSort(m_taskModel->fieldIndex("priority"), Qt::DescendingOrder);
+    m_taskModel->select();
+}
+
 void MainWindow::onRefresh()
 {
     m_taskModel->select();
@@ -292,6 +323,21 @@ void MainWindow::onAbout()
 {
     AboutDialog dlg(this);
     dlg.exec();
+}
+
+void MainWindow::onCategoryChanged(const QString& category)
+{
+    if (category == "全部任务") {
+        m_taskModel->setFilter(""); // 清空筛选
+    } else {
+        m_taskModel->setFilter(QString("category = '%1'").arg(category));
+    }
+    m_taskModel->select();
+
+    // 更新统计
+    QList<Task> tasks = (category == "全部任务") ? TaskDBManager::getInstance()->getAllTasks()
+                                                 : TaskDBManager::getInstance()->getTasksByCategory(category);
+    updateStatusBar(tasks.size(), countUnfinished(tasks));
 }
 
 

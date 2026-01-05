@@ -74,6 +74,7 @@ public:
     bool deleteTask(int taskId);
     QList<Task> getAllTasks();
     Task getTaskById(int taskId);
+    QList<Task> getTasksByCategory(const QString& category);
 
 
 private:
