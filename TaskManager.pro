@@ -12,16 +12,19 @@ SOURCES += \
     aboutdialog.cpp \
     main.cpp \
     mainwindow.cpp \
-    taskdbmanager.cpp
+    taskdbmanager.cpp \
+    taskdialog.cpp
 
 HEADERS += \
     aboutdialog.h \
     mainwindow.h \
-    taskdbmanager.h
+    taskdbmanager.h \
+    taskdialog.h
 
 FORMS += \
     aboutdialog.ui \
-    mainwindow.ui
+    mainwindow.ui \
+    taskdialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
