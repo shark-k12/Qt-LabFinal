@@ -1,8 +1,14 @@
-QT       += core gui sql charts widgets
+QT       += core gui sql charts widgets printsupport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
+
+# 设置QXlsx的路径（QXlsx文件夹和pro文件同级）
+QXLSX_PARENTPATH = ./QXlsx         # QXlsx根目录
+QXLSX_HEADERPATH = ./QXlsx/header/ # 头文件路径
+QXLSX_SOURCEPATH = ./QXlsx/source/ # 源文件路径
+include($$QXLSX_PARENTPATH/QXlsx.pri) # 引入QXlsx的编译配置
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.

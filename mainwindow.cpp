@@ -1,7 +1,7 @@
 #include "mainwindow.h"
-#include "taskdbManager.h"
 #include "taskdialog.h"
 #include "aboutdialog.h"
+#include "xlsxdocument.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -13,8 +13,11 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QFileDialog>
+#include <QPrinter>
 #include <QPieSeries>
 #include <QDebug>
+
+using namespace QXlsx;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -43,6 +46,7 @@ MainWindow::MainWindow(QWidget *parent)
     initTaskTable();
     initCategoryList();
     initStatPanel();
+    onRefresh();
 
     if (!TaskDBManager::getInstance()->isConnected()) {
         QMessageBox::critical(this, "错误", "数据库连接失败！");
@@ -105,8 +109,8 @@ void MainWindow::initMenuBar()
 
     // 文件菜单
     QMenu *fileMenu = menuBar->addMenu(tr("文件(&F)"));
-    fileMenu->addAction(tr("导出Excel报表(&E)"));
-    fileMenu->addAction(tr("导出PDF报表(&P)"));
+    QAction *exportExcelAct = fileMenu->addAction("导出Excel(&E)");
+    QAction *exportPdfAct = fileMenu->addAction("导出PDF(&P)");
     fileMenu->addSeparator();
     fileMenu->addAction(tr("退出(&X)"));
 
@@ -129,6 +133,8 @@ void MainWindow::initMenuBar()
     connect(editAct, &QAction::triggered, this, &MainWindow::onEditTask);
     connect(deleteAct, &QAction::triggered, this, &MainWindow::onDeleteTask);
     connect(sortAct, &QAction::triggered, this, &MainWindow::onSortByPriority);
+    connect(exportExcelAct, &QAction::triggered, this, &MainWindow::onExportExcel);
+    connect(exportPdfAct, &QAction::triggered, this, &MainWindow::onExportPdf);
     connect(aboutAct, &QAction::triggered, this, &MainWindow::onAbout);
 }
 
@@ -144,14 +150,16 @@ void MainWindow::initToolBar()
     QAction *editAct = toolBar->addAction("编辑任务");
     toolBar->addSeparator(); // 分隔线
     QAction *sortAct = toolBar->addAction("按优先级排序");
-    toolBar->addAction(QIcon::fromTheme("view-refresh"), tr("刷新"));
+    QAction *refreshAct = toolBar->addAction(QIcon::fromTheme("view-refresh"), tr("刷新"));
     toolBar->addSeparator();
-    toolBar->addAction(QIcon::fromTheme("document-export"), tr("导出报表"));
+    QAction *exportAct = toolBar->addAction(QIcon::fromTheme("document-export"), tr("导出报表"));
 
     connect(addAct, &QAction::triggered, this, &MainWindow::onAddTask);
     connect(editAct, &QAction::triggered, this, &MainWindow::onEditTask);
     connect(deleteAct, &QAction::triggered, this, &MainWindow::onDeleteTask);
     connect(sortAct, &QAction::triggered, this, &MainWindow::onSortByPriority);
+    connect(refreshAct, &QAction::triggered, this, &MainWindow::onRefresh);
+    connect(exportAct, &QAction::triggered, this, &MainWindow::onExportExcel);
 }
 
 void MainWindow::initTaskTable()
@@ -315,14 +323,96 @@ void MainWindow::onSortByPriority()
 void MainWindow::onRefresh()
 {
     m_taskModel->select();
+
+    // 更新状态栏统计
+    QList<Task> allTasks = TaskDBManager::getInstance()->getAllTasks();
+    QList<Task> uncompletedTasks = TaskDBManager::getInstance()->getUncompletedTasks();
+    updateStatusBar(allTasks.size(), uncompletedTasks.size());
 }
-
-
 
 void MainWindow::onAbout()
 {
     AboutDialog dlg(this);
     dlg.exec();
+}
+
+void MainWindow::onExportExcel()
+{
+    QString filePath = QFileDialog::getSaveFileName(this, "导出Excel", "任务统计.xlsx", "Excel文件 (*.xlsx)");
+    if (filePath.isEmpty()) return;
+
+    QXlsx::Document xlsx;
+    // 表头
+    xlsx.write("A1", "ID");
+    xlsx.write("B1", "任务标题");
+    xlsx.write("C1", "分类");
+    xlsx.write("D1", "优先级");
+    xlsx.write("E1", "截止时间");
+    xlsx.write("F1", "完成状态");
+    xlsx.write("G1", "描述");
+
+    // 数据
+    QList<Task> tasks = TaskDBManager::getInstance()->getAllTasks();
+    int row = 2;
+    for (const Task& task : tasks) {
+        xlsx.write(row, 1, task.id);
+        xlsx.write(row, 2, task.title);
+        xlsx.write(row, 3, task.category);
+        xlsx.write(row, 4, task.priority);
+        xlsx.write(row, 5, task.deadline.toString("yyyy-MM-dd HH:mm"));
+        xlsx.write(row, 6, task.isCompleted ? "已完成" : "未完成");
+        xlsx.write(row, 7, task.description);
+        row++;
+    }
+
+    if (xlsx.saveAs(filePath)) {
+        QMessageBox::information(this, "提示", "Excel导出成功！");
+    } else {
+        QMessageBox::critical(this, "错误", "Excel导出失败！");
+    }
+}
+
+void MainWindow::onExportPdf()
+{
+    QString filePath = QFileDialog::getSaveFileName(this, "导出PDF", "任务统计.pdf", "PDF文件 (*.pdf)");
+    if (filePath.isEmpty()) return;
+
+    QPrinter printer(QPrinter::HighResolution);
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName(filePath);
+    printer.setPageSize(QPageSize::A4);
+
+    QPainter painter(&printer);
+    // 标题
+    painter.setFont(QFont("Microsoft YaHei", 18, QFont::Bold));
+    painter.drawText(100, 50, "任务统计报表");
+
+    // 表头
+    painter.setFont(QFont("Microsoft YaHei", 12, QFont::Bold));
+    int x = 50, y = 100;
+    painter.drawText(x, y, "ID");
+    painter.drawText(x + 80, y, "任务标题");
+    painter.drawText(x + 200, y, "分类");
+    painter.drawText(x + 300, y, "优先级");
+    painter.drawText(x + 380, y, "截止时间");
+    painter.drawText(x + 500, y, "完成状态");
+
+    // 数据
+    painter.setFont(QFont("Microsoft YaHei", 10));
+    y += 30;
+    QList<Task> tasks = TaskDBManager::getInstance()->getAllTasks();
+    for (const Task& task : tasks) {
+        painter.drawText(x, y, QString::number(task.id));
+        painter.drawText(x + 80, y, task.title);
+        painter.drawText(x + 200, y, task.category);
+        painter.drawText(x + 300, y, QString::number(task.priority));
+        painter.drawText(x + 380, y, task.deadline.toString("yyyy-MM-dd HH:mm"));
+        painter.drawText(x + 500, y, task.isCompleted ? "已完成" : "未完成");
+        y += 25;
+    }
+
+    painter.end();
+    QMessageBox::information(this, "提示", "PDF导出成功！");
 }
 
 void MainWindow::onCategoryChanged(const QString& category)
@@ -335,9 +425,14 @@ void MainWindow::onCategoryChanged(const QString& category)
     m_taskModel->select();
 
     // 更新统计
-    QList<Task> tasks = (category == "全部任务") ? TaskDBManager::getInstance()->getAllTasks()
-                                                 : TaskDBManager::getInstance()->getTasksByCategory(category);
-    updateStatusBar(tasks.size(), countUnfinished(tasks));
+    if (category == "全部任务") {
+        QList<Task> allTasks = TaskDBManager::getInstance()->getAllTasks();
+        QList<Task> uncompletedTasks = TaskDBManager::getInstance()->getUncompletedTasks();
+        updateStatusBar(allTasks.size(), uncompletedTasks.size());
+    } else {
+        QList<Task> categoryTasks = TaskDBManager::getInstance()->getTasksByCategory(category);
+        updateStatusBar(categoryTasks.size(), countUnfinished(categoryTasks));
+    }
 }
 
 

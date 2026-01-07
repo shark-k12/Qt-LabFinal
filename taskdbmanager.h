@@ -73,6 +73,7 @@ public:
     bool updateTask(const Task& task);
     bool deleteTask(int taskId);
     QList<Task> getAllTasks();
+    QList<Task> getUncompletedTasks();
     Task getTaskById(int taskId);
     QList<Task> getTasksByCategory(const QString& category);
 

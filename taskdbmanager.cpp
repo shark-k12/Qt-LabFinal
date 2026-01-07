@@ -224,6 +224,33 @@ QList<Task> TaskDBManager::getAllTasks()
     return tasks;
 }
 
+QList<Task> TaskDBManager::getUncompletedTasks()
+{
+    QList<Task> tasks;
+    if (!isConnected()) return tasks;
+
+    QSqlQuery query(m_db);
+    if (!query.exec("SELECT * FROM tasks WHERE is_completed = 0 ORDER BY deadline ASC")) {
+        qCritical() << "查询未完成任务失败：" << query.lastError().text();
+        return tasks;
+    }
+
+    while (query.next()) {
+        QVariantMap map;
+        map["id"] = query.value("id");
+        map["title"] = query.value("title");
+        map["category"] = query.value("category");
+        map["priority"] = query.value("priority");
+        map["deadline"] = query.value("deadline");
+        map["is_completed"] = query.value("is_completed");
+        map["description"] = query.value("description");
+        map["create_time"] = query.value("create_time");
+        map["update_time"] = query.value("update_time");
+        tasks.append(Task::fromMap(map));
+    }
+    return tasks;
+}
+
 Task TaskDBManager::getTaskById(int taskId)
 {
     Task task;

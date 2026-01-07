@@ -42,6 +42,8 @@ private slots:
     void onSortByPriority();
     void onRefresh();
     void onAbout();
+    void onExportExcel();
+    void onExportPdf();
     void onCategoryChanged(const QString& category);
 
 };
