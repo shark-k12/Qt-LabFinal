@@ -9,7 +9,9 @@
 #include <QListWidget>
 #include <QProgressBar>
 #include <QChart>
+#include <QLabel>
 #include <QChartView>
+#include <QPieSeries>
 
 class MainWindow : public QMainWindow
 {
@@ -24,6 +26,9 @@ private:
     QListWidget *m_categoryList;    // 左侧分类导航
     QTableView *m_taskTableView;    // 中间任务列表
     QWidget *m_statWidget;          // 右侧统计面板
+    QProgressBar *m_completionBar;        // 完成率进度条
+    QLabel *m_totalLabel, *m_unfinishedLabel, *m_rateLabel; // 统计标签
+    QChartView *m_pieChartView;           // 饼图
 
     void initUI();                        // 整体UI
     void initMenuBar();                   // 菜单栏
@@ -34,6 +39,7 @@ private:
 
     void updateStatusBar(int total, int unfinished);
     int countUnfinished(const QList<Task>& tasks);
+    void refreshStatPanel();
 
 private slots:
     void onAddTask();

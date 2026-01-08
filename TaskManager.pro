@@ -19,13 +19,15 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     taskdbmanager.cpp \
-    taskdialog.cpp
+    taskdialog.cpp \
+    taskstatistic.cpp
 
 HEADERS += \
     aboutdialog.h \
     mainwindow.h \
     taskdbmanager.h \
-    taskdialog.h
+    taskdialog.h \
+    taskstatistic.h
 
 FORMS += \
     aboutdialog.ui \

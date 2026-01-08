@@ -2,6 +2,7 @@
 #include "taskdialog.h"
 #include "aboutdialog.h"
 #include "xlsxdocument.h"
+#include "taskstatistic.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -199,45 +200,41 @@ void MainWindow::initCategoryList()
     connect(m_categoryList, &QListWidget::currentTextChanged, this, &MainWindow::onCategoryChanged);
 }
 
-// 初始化右侧统计面板
 void MainWindow::initStatPanel()
 {
     QVBoxLayout *statLayout = new QVBoxLayout(m_statWidget);
-    statLayout->setSpacing(10);
-    statLayout->setContentsMargins(10, 10, 10, 10);
+    statLayout->setSpacing(15);
+    statLayout->setContentsMargins(20, 20, 20, 20);
 
     // 1. 标题
-    QLabel *titleLabel = new QLabel(tr("任务完成统计"), m_statWidget);
-    titleLabel->setStyleSheet("font-size: 16px; font-weight: bold;");
+    QLabel *titleLabel = new QLabel("任务统计", m_statWidget);
+    titleLabel->setStyleSheet("font-size: 18px; font-weight: bold;");
     titleLabel->setAlignment(Qt::AlignCenter);
     statLayout->addWidget(titleLabel);
 
-    // 2. 统计数字面板
-    QWidget *numWidget = new QWidget(m_statWidget);
-    QVBoxLayout *numLayout = new QVBoxLayout(numWidget);
-    numLayout->setSpacing(5);
-    numLayout->addWidget(new QLabel(tr("总任务数：0"), numWidget));
-    numLayout->addWidget(new QLabel(tr("未完成数：0"), numWidget));
-    numLayout->addWidget(new QLabel(tr("完成率：0%"), numWidget));
-    statLayout->addWidget(numWidget);
+    // 2. 基础统计
+    QWidget *baseStatWidget = new QWidget(m_statWidget);
+    QVBoxLayout *baseLayout = new QVBoxLayout(baseStatWidget);
+    m_totalLabel = new QLabel("总任务数：0", baseStatWidget);
+    m_unfinishedLabel = new QLabel("未完成数：0", baseStatWidget);
+    m_rateLabel = new QLabel("完成率：0%", baseStatWidget);
+    baseLayout->addWidget(m_totalLabel);
+    baseLayout->addWidget(m_unfinishedLabel);
+    baseLayout->addWidget(m_rateLabel);
+    statLayout->addWidget(baseStatWidget);
 
     // 3. 完成率进度条
-    QProgressBar *rateBar = new QProgressBar(m_statWidget);
-    rateBar->setRange(0, 100);
-    rateBar->setValue(0);
-    statLayout->addWidget(rateBar);
+    m_completionBar = new QProgressBar(m_statWidget);
+    m_completionBar->setRange(0, 100);
+    m_completionBar->setValue(0);
+    statLayout->addWidget(m_completionBar);
 
-    // 4. 分类占比饼图
-    QChart *pieChart = new QChart();
-    pieChart->setTitle(tr("任务分类占比"));
-    QPieSeries *pieSeries = new QPieSeries();
-    pieChart->addSeries(pieSeries);
-    QChartView *chartView = new QChartView(pieChart, m_statWidget);
-    chartView->setRenderHint(QPainter::Antialiasing);
-    chartView->setMinimumHeight(200);
-    statLayout->addWidget(chartView);
+    // 4. 分类饼图
+    m_pieChartView = new QChartView(m_statWidget);
+    m_pieChartView->setMinimumHeight(200);
+    statLayout->addWidget(m_pieChartView);
 
-    // 5. 占位符（拉伸底部）
+    // 5. 占位符
     statLayout->addStretch();
 }
 
@@ -257,6 +254,45 @@ int MainWindow::countUnfinished(const QList<Task>& tasks)
     }
     return count;
 }
+
+void MainWindow::refreshStatPanel()
+{
+
+    QList<Task> allTasks = TaskDBManager::getInstance()->getAllTasks();
+    qDebug() << "统计时查询到的任务数：" << allTasks.size();
+
+    // 获取统计数据
+    int total, unfinished;
+    TaskStatistic::statTotal(total, unfinished);
+    float rate = TaskStatistic::getCompletionRate() * 100;
+    QMap<QString, QPair<int, int>> statMap = TaskStatistic::statByCategory();
+
+    // 更新基础统计
+    m_totalLabel->setText(QString("总任务数：%1").arg(total));
+    m_unfinishedLabel->setText(QString("未完成数：%1").arg(unfinished));
+    m_rateLabel->setText(QString("完成率：%1%").arg(QString::number(rate, 'f', 1)));
+    m_completionBar->setValue((int)rate);
+
+    // 更新饼图
+    QPieSeries *series = new QPieSeries();
+    for (auto it = statMap.begin(); it != statMap.end(); ++it) {
+        int count = it.value().first + it.value().second;
+        series->append(it.key(), count);
+    }
+
+    // 饼图样式
+    QChart *chart = new QChart();
+    chart->addSeries(series);
+    chart->setTitle("任务分类占比");
+    chart->legend()->setAlignment(Qt::AlignBottom);
+    m_pieChartView->setChart(chart);
+    m_pieChartView->setRenderHint(QPainter::Antialiasing);
+
+    // 更新状态栏
+    updateStatusBar(total, unfinished);
+}
+
+
 
 void MainWindow::onAddTask()
 {
@@ -323,6 +359,8 @@ void MainWindow::onSortByPriority()
 void MainWindow::onRefresh()
 {
     m_taskModel->select();
+
+    refreshStatPanel();
 
     // 更新状态栏统计
     QList<Task> allTasks = TaskDBManager::getInstance()->getAllTasks();
