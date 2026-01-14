@@ -21,7 +21,7 @@ public:
     ~AboutDialog();
 
 private slots:
-    void on_Author_clicked();
+    void on_author_clicked();
 
     void on_email_clicked();
 

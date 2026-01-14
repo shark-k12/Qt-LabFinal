@@ -69,7 +69,7 @@ AboutDialog::~AboutDialog()
     delete ui;
 }
 
-void AboutDialog::on_Author_clicked()
+void AboutDialog::on_author_clicked()
 {
     QDesktopServices::openUrl(QUrl("https://github.com/shark-k12/Qt-LabFinal", QUrl::TolerantMode));
 }
