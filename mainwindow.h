@@ -2,6 +2,8 @@
 #define MAINWINDOW_H
 
 #include "taskdbmanager.h"
+#include "reminderthread.h"
+#include "remindersettingdialog.h"
 #include <QMainWindow>
 #include <QSqlTableModel>
 #include <QTableView>
@@ -29,6 +31,8 @@ private:
     QProgressBar *m_completionBar;        // 完成率进度条
     QLabel *m_totalLabel, *m_unfinishedLabel, *m_rateLabel; // 统计标签
     QChartView *m_pieChartView;           // 饼图
+    ReminderThread *m_reminderThread;
+
 
     void initUI();                        // 整体UI
     void initMenuBar();                   // 菜单栏
@@ -36,6 +40,7 @@ private:
     void initTaskTable();                 // 任务表格
     void initCategoryList();              // 分类导航
     void initStatPanel();                 // 统计面板
+    void initReminderThread();            // 提醒线程
 
     void updateStatusBar(int total, int unfinished);
     int countUnfinished(const QList<Task>& tasks);
@@ -51,7 +56,8 @@ private slots:
     void onExportExcel();
     void onExportPdf();
     void onCategoryChanged(const QString& category);
-
+    void onTaskReminder(const QString& msg); // 接收提醒信号的槽函数
+    void onSetReminderThreshold(); // 打开阈值设置弹窗
 };
 
 

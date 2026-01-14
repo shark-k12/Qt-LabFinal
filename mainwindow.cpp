@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "taskdialog.h"
 #include "aboutdialog.h"
+#include "remindersettingdialog.h"
 #include "xlsxdocument.h"
 #include "taskstatistic.h"
 #include <QHBoxLayout>
@@ -47,6 +48,7 @@ MainWindow::MainWindow(QWidget *parent)
     initTaskTable();
     initCategoryList();
     initStatPanel();
+    initReminderThread();
     onRefresh();
 
     if (!TaskDBManager::getInstance()->isConnected()) {
@@ -101,8 +103,14 @@ void MainWindow::initUI()
     statusBar->addPermanentWidget(taskStatLabel);
 }
 
-MainWindow::~MainWindow() = default;
-
+MainWindow::~MainWindow()
+{
+    // 安全释放提醒线程
+    if (m_reminderThread) {
+        delete m_reminderThread;
+        m_reminderThread = nullptr;
+    }
+}
 
 void MainWindow::initMenuBar()
 {
@@ -123,7 +131,7 @@ void MainWindow::initMenuBar()
 
     // 设置菜单
     QMenu *settingMenu = menuBar->addMenu(tr("设置(&S)"));
-    settingMenu->addAction(tr("提醒阈值设置(&R)"));
+    QAction *reminderThresholdAct = settingMenu->addAction("提醒阈值设置(&R)");
     QAction *sortAct = settingMenu->addAction("按优先级排序(&P)");
 
     // 帮助菜单
@@ -133,6 +141,7 @@ void MainWindow::initMenuBar()
     connect(addAct, &QAction::triggered, this, &MainWindow::onAddTask);
     connect(editAct, &QAction::triggered, this, &MainWindow::onEditTask);
     connect(deleteAct, &QAction::triggered, this, &MainWindow::onDeleteTask);
+    connect(reminderThresholdAct, &QAction::triggered, this, &MainWindow::onSetReminderThreshold);
     connect(sortAct, &QAction::triggered, this, &MainWindow::onSortByPriority);
     connect(exportExcelAct, &QAction::triggered, this, &MainWindow::onExportExcel);
     connect(exportPdfAct, &QAction::triggered, this, &MainWindow::onExportPdf);
@@ -153,6 +162,7 @@ void MainWindow::initToolBar()
     QAction *sortAct = toolBar->addAction("按优先级排序");
     QAction *refreshAct = toolBar->addAction(QIcon::fromTheme("view-refresh"), tr("刷新"));
     toolBar->addSeparator();
+    QAction *reminderSettingAct = toolBar->addAction("提醒设置");
     QAction *exportAct = toolBar->addAction(QIcon::fromTheme("document-export"), tr("导出报表"));
 
     connect(addAct, &QAction::triggered, this, &MainWindow::onAddTask);
@@ -160,6 +170,7 @@ void MainWindow::initToolBar()
     connect(deleteAct, &QAction::triggered, this, &MainWindow::onDeleteTask);
     connect(sortAct, &QAction::triggered, this, &MainWindow::onSortByPriority);
     connect(refreshAct, &QAction::triggered, this, &MainWindow::onRefresh);
+    connect(reminderSettingAct, &QAction::triggered, this, &MainWindow::onSetReminderThreshold);
     connect(exportAct, &QAction::triggered, this, &MainWindow::onExportExcel);
 }
 
@@ -236,6 +247,17 @@ void MainWindow::initStatPanel()
 
     // 5. 占位符
     statLayout->addStretch();
+}
+
+void MainWindow::initReminderThread()
+{
+    m_reminderThread = new ReminderThread(this);
+    // 绑定提醒信号到槽函数
+    connect(m_reminderThread, &ReminderThread::reminder,
+            this, &MainWindow::onTaskReminder);
+    // 启动线程
+    m_reminderThread->start();
+    qDebug() << "提醒线程已启动，默认阈值：30分钟";
 }
 
 void MainWindow::updateStatusBar(int total, int unfinished)
@@ -472,5 +494,30 @@ void MainWindow::onCategoryChanged(const QString& category)
         updateStatusBar(categoryTasks.size(), countUnfinished(categoryTasks));
     }
 }
+
+void MainWindow::onTaskReminder(const QString& msg)
+{
+    QMessageBox::information(this, "任务提醒", msg);
+}
+
+void MainWindow::onSetReminderThreshold()
+{
+    // 1. 获取当前提醒线程的阈值
+    int currentThreshold = m_reminderThread->getReminderThreshold(); // 先给ReminderThread加get方法
+
+    // 2. 打开设置弹窗
+    ReminderSettingDialog dlg(currentThreshold, this);
+    if (dlg.exec() == QDialog::Accepted) {
+        // 3. 获取用户设置的新阈值并更新到提醒线程
+        int newThreshold = dlg.getNewThreshold();
+        m_reminderThread->setReminderThreshold(newThreshold);
+
+        // 4. 提示用户设置成功
+        QMessageBox::information(this, "设置成功",
+                                 QString("提醒阈值已设置为：%1 分钟").arg(newThreshold));
+    }
+}
+
+
 
 

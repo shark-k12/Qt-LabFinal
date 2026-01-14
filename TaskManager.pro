@@ -18,6 +18,8 @@ SOURCES += \
     aboutdialog.cpp \
     main.cpp \
     mainwindow.cpp \
+    remindersettingdialog.cpp \
+    reminderthread.cpp \
     taskdbmanager.cpp \
     taskdialog.cpp \
     taskstatistic.cpp
@@ -25,6 +27,8 @@ SOURCES += \
 HEADERS += \
     aboutdialog.h \
     mainwindow.h \
+    remindersettingdialog.h \
+    reminderthread.h \
     taskdbmanager.h \
     taskdialog.h \
     taskstatistic.h
@@ -32,6 +36,7 @@ HEADERS += \
 FORMS += \
     aboutdialog.ui \
     mainwindow.ui \
+    remindersettingdialog.ui \
     taskdialog.ui
 
 # Default rules for deployment.
