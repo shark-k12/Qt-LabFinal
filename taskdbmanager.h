@@ -76,6 +76,7 @@ public:
     QList<Task> getUncompletedTasks();
     Task getTaskById(int taskId);
     QList<Task> getTasksByCategory(const QString& category);
+    Task getLatestTask();
 
 
 private:

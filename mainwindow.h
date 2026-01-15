@@ -45,6 +45,7 @@ private:
     void updateStatusBar(int total, int unfinished);
     int countUnfinished(const QList<Task>& tasks);
     void refreshStatPanel();
+    void updateLatestTaskStatus();
 
 private slots:
     void onAddTask();

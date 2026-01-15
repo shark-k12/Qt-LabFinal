@@ -305,3 +305,31 @@ QList<Task> TaskDBManager::getTasksByCategory(const QString& category)
     }
     return tasks;
 }
+
+Task TaskDBManager::getLatestTask()
+{
+    Task latestTask;
+    if (!isConnected()) return latestTask;
+
+    QSqlQuery query(m_db);
+    // 核心修改：只查 未完成 + 截止时间 > 当前时间 的任务，按截止时间升序取第一条
+    QString sql = QString(R"(
+        SELECT * FROM tasks
+        WHERE is_completed = 0 AND deadline > '%1'
+        ORDER BY deadline ASC LIMIT 1
+    )").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+
+    if (!query.exec(sql)) {
+        qCritical() << "查询最近任务失败：" << query.lastError().text();
+        return latestTask;
+    }
+
+    if (query.next()) {
+        QVariantMap map;
+        map["id"] = query.value("id");
+        map["title"] = query.value("title");
+        map["deadline"] = query.value("deadline");
+        latestTask = Task::fromMap(map);
+    }
+    return latestTask;
+}

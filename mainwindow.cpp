@@ -94,9 +94,9 @@ void MainWindow::initUI()
     QStatusBar *statusBar = new QStatusBar(this);
     setStatusBar(statusBar);
 
-    QLabel *dbStatusLabel = new QLabel("数据库已连接", this);
-    dbStatusLabel->setObjectName("dbStatusLabel");
-    statusBar->addWidget(dbStatusLabel);
+    QLabel *latestTaskLabel = new QLabel("最近任务：无", this);
+    latestTaskLabel->setObjectName("latestTaskLabel");
+    statusBar->addWidget(latestTaskLabel);
 
     QLabel *taskStatLabel = new QLabel("总任务：0 | 未完成：0", this);
     taskStatLabel->setObjectName("taskStatLabel");
@@ -314,6 +314,46 @@ void MainWindow::refreshStatPanel()
     updateStatusBar(total, unfinished);
 }
 
+void MainWindow::updateLatestTaskStatus()
+{
+    QLabel *latestTaskLabel = statusBar()->findChild<QLabel*>("latestTaskLabel");
+    if (!latestTaskLabel) return;
+
+    Task latestTask = TaskDBManager::getInstance()->getLatestTask();
+    if (latestTask.id == -1) {
+        // 无未逾期的未完成任务时的友好提示
+        latestTaskLabel->setText("最近任务：暂无待完成的未逾期任务");
+        return;
+    }
+
+    // 计算剩余时间（此时已确保 deadline > 当前时间）
+    QDateTime now = QDateTime::currentDateTime();
+    qint64 totalSeconds = now.secsTo(latestTask.deadline);
+
+    // 精确拆分小时和分钟（舍去秒数，只保留整分钟）
+    int hours = totalSeconds / 3600;
+    int minutes = (totalSeconds % 3600) / 60;
+
+    // 格式化显示（处理单/复数，更人性化）
+    QString hourText = hours == 1 ? "1小时" : QString("%1小时").arg(hours);
+    QString minuteText = minutes == 1 ? "1分钟" : QString("%1分钟").arg(minutes);
+
+    // 特殊处理：只有小时/只有分钟的情况
+    QString timeText;
+    if (hours == 0) {
+        timeText = minuteText;
+    } else if (minutes == 0) {
+        timeText = hourText;
+    } else {
+        timeText = QString("%1 %2").arg(hourText).arg(minuteText);
+    }
+
+    // 最终显示文本
+    latestTaskLabel->setText(
+        QString("最近任务：「%1」 剩余 %2").arg(latestTask.title).arg(timeText)
+        );
+}
+
 
 
 void MainWindow::onAddTask()
@@ -383,6 +423,8 @@ void MainWindow::onRefresh()
     m_taskModel->select();
 
     refreshStatPanel();
+
+    updateLatestTaskStatus();
 
     // 更新状态栏统计
     QList<Task> allTasks = TaskDBManager::getInstance()->getAllTasks();
