@@ -74,18 +74,31 @@ void ReminderThread::run()
 void ReminderThread::checkTasks()
 {
     qDebug() << "🔍 开始检测任务（当前阈值：" << m_reminderThreshold << "分钟）";
+
+    // 数据库连接校验
+    if (!TaskDBManager::getInstance()->isConnected()) {
+        qDebug() << "❌ 数据库连接失败，跳过任务检测";
+        return;
+    }
     QList<Task> allTasks = TaskDBManager::getInstance()->getAllTasks();
     qDebug() << "查询到的任务总数：" << allTasks.size();
 
+    // 初始化变量
     QDateTime now = QDateTime::currentDateTime();
+    bool taskExpired = false;
     QStringList reminderMsgs;
+    // 用静态Map记录每个任务的提醒状态（避免重复弹窗）
+    static QMap<int, QSet<int>> taskRemindFlag; // key:任务ID，value:已触发的提醒类型（1=阈值提醒，2=截止提醒）
 
     for (const Task& task : allTasks) {
+        // 跳过已完成任务，重置提醒标记
         if (task.isCompleted) {
             qDebug() << "跳过已完成任务：" << task.title;
+            taskRemindFlag.remove(task.id);
             continue;
         }
 
+        // 计算剩余时间（秒转分钟）
         qint64 diffSeconds = now.secsTo(task.deadline);
         qint64 diffMinutes = diffSeconds / 60;
         qDebug() << "任务：" << task.title
@@ -93,21 +106,41 @@ void ReminderThread::checkTasks()
                  << " | 当前时间：" << now.toString("yyyy-MM-dd HH:mm:ss")
                  << " | 剩余分钟：" << diffMinutes;
 
-        // 修复后的判断逻辑（包含0分钟）
-        if (diffMinutes <= m_reminderThreshold && diffMinutes >= 0) {
-            if (diffMinutes == 0) {
-                reminderMsgs.append(QString("【到期提醒】任务「%1」已到截止时间！").arg(task.title));
-            } else {
-                reminderMsgs.append(QString("【到期提醒】任务「%1」将在 %2 分钟后截止！").arg(task.title).arg(diffMinutes));
-            }
+        // 逾期任务：重置标记+标记状态
+        if (diffMinutes < 0) {
+            taskExpired = true;
+            taskRemindFlag.remove(task.id); // 逾期后重置提醒标记
+            qDebug() << "⚠️ 任务「" << task.title << "」已逾期 " << -diffMinutes << " 分钟";
+            continue;
+        }
+
+        // ===== 核心逻辑：仅阈值时间、截止时间弹窗（各一次）=====
+        // 1. 阈值时间提醒
+        if (diffMinutes == m_reminderThreshold && !taskRemindFlag[task.id].contains(1)) {
+            reminderMsgs.append(QString("【提醒】任务「%1」将在 %2 分钟后截止！").arg(task.title).arg(diffMinutes));
+            taskRemindFlag[task.id].insert(1); // 标记已触发阈值提醒
+            qDebug() << "🚨 触发阈值提醒：" << task.title;
+        }
+
+        // 2. 截止时间提醒
+        if (diffMinutes == 0 && !taskRemindFlag[task.id].contains(2)) {
+            reminderMsgs.append(QString("【提醒】任务「%1」已到截止时间！").arg(task.title));
+            taskRemindFlag[task.id].insert(2); // 标记已触发截止提醒
+            qDebug() << "🚨 触发截止提醒：" << task.title;
         }
     }
 
+    // 发射提醒信号
     if (!reminderMsgs.isEmpty()) {
-        qDebug() << "🚨 检测到待提醒任务，发射信号：" << reminderMsgs.join("\n");
+        qDebug() << "📢 发射提醒信号：" << reminderMsgs.join("\n");
         emit reminder(reminderMsgs.join("\n"));
-        emit taskStatusChanged(); // 新增：触发状态栏更新
+        emit taskStatusChanged(); // 更新状态栏
     } else {
-        qDebug() << "ℹ️ 无待提醒任务";
+        qDebug() << "ℹ️ 无待提醒任务（未到阈值/截止时间）";
+    }
+
+    // 有逾期任务时更新状态栏
+    if (taskExpired) {
+        emit taskStatusChanged();
     }
 }

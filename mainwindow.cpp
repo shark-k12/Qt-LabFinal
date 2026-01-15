@@ -56,7 +56,10 @@ MainWindow::MainWindow(QWidget *parent)
         QMessageBox::critical(this, "错误", "数据库连接失败！");
     }
 
-    onTaskReminder("测试托盘通知：任务「测试1」将在2分钟后截止！");
+    QTimer *statusTimer = new QTimer(this);
+    statusTimer->start(60000);
+    connect(statusTimer, &QTimer::timeout, this, &MainWindow::updateLatestTaskStatus);
+
 }
 
 void MainWindow::initUI()
@@ -364,36 +367,35 @@ void MainWindow::updateLatestTaskStatus()
     QLabel *latestTaskLabel = statusBar()->findChild<QLabel*>("latestTaskLabel");
     if (!latestTaskLabel) return;
 
-    Task latestTask = TaskDBManager::getInstance()->getLatestTask();
+    QDateTime now = QDateTime::currentDateTime();
+    Task latestTask;
+    int retryCount = 0;
+
+    // 强制重试3次，确保找到有效任务
+    while (retryCount < 3) {
+        latestTask = TaskDBManager::getInstance()->getLatestTask();
+        // 校验任务是否有效（未逾期）
+        if (latestTask.id != -1 && latestTask.deadline > now) {
+            break;
+        }
+        retryCount++;
+        QThread::msleep(100); // 短暂等待后重试
+    }
+
+    // 情况1：无有效任务
     if (latestTask.id == -1) {
-        // 无未逾期的未完成任务时的友好提示
-        latestTaskLabel->setText("最近任务：暂无待完成的未逾期任务");
+        latestTaskLabel->setText("最近任务：无");
         return;
     }
 
-    // 计算剩余时间（此时已确保 deadline > 当前时间）
-    QDateTime now = QDateTime::currentDateTime();
-    qint64 totalSeconds = now.secsTo(latestTask.deadline);
+    // 情况2：有效任务，计算剩余时间
+    qint64 diffSeconds = now.secsTo(latestTask.deadline);
+    int hours = diffSeconds / 3600;
+    int minutes = (diffSeconds % 3600) / 60;
+    QString timeText = (hours > 0) ?
+                           QString("%1小时%2分钟").arg(hours).arg(minutes) :
+                           QString("%1分钟").arg(minutes);
 
-    // 精确拆分小时和分钟（舍去秒数，只保留整分钟）
-    int hours = totalSeconds / 3600;
-    int minutes = (totalSeconds % 3600) / 60;
-
-    // 格式化显示（处理单/复数，更人性化）
-    QString hourText = hours == 1 ? "1小时" : QString("%1小时").arg(hours);
-    QString minuteText = minutes == 1 ? "1分钟" : QString("%1分钟").arg(minutes);
-
-    // 特殊处理：只有小时/只有分钟的情况
-    QString timeText;
-    if (hours == 0) {
-        timeText = minuteText;
-    } else if (minutes == 0) {
-        timeText = hourText;
-    } else {
-        timeText = QString("%1 %2").arg(hourText).arg(minuteText);
-    }
-
-    // 最终显示文本
     latestTaskLabel->setText(
         QString("最近任务：「%1」 剩余 %2").arg(latestTask.title).arg(timeText)
         );

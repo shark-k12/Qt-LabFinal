@@ -311,25 +311,35 @@ Task TaskDBManager::getLatestTask()
     Task latestTask;
     if (!isConnected()) return latestTask;
 
-    QSqlQuery query(m_db);
-    // 核心修改：只查 未完成 + 截止时间 > 当前时间 的任务，按截止时间升序取第一条
+    QDateTime now = QDateTime::currentDateTime();
+    // 1. 执行严格SQL：仅未完成+截止时间>当前时间
     QString sql = QString(R"(
         SELECT * FROM tasks
-        WHERE is_completed = 0 AND deadline > '%1'
-        ORDER BY deadline ASC LIMIT 1
-    )").arg(QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
+        WHERE is_completed = 0
+          AND deadline > '%1'
+        ORDER BY deadline ASC
+        LIMIT 1
+    )").arg(now.toString("yyyy-MM-dd HH:mm:ss"));
 
+    QSqlQuery query(m_db);
     if (!query.exec(sql)) {
         qCritical() << "查询最近任务失败：" << query.lastError().text();
         return latestTask;
     }
 
+    // 2. 二次校验：确保查询到的任务未逾期
     if (query.next()) {
         QVariantMap map;
         map["id"] = query.value("id");
         map["title"] = query.value("title");
         map["deadline"] = query.value("deadline");
         latestTask = Task::fromMap(map);
+
+        // 强制校验截止时间是否>当前时间
+        if (latestTask.deadline <= now) {
+            latestTask.id = -1; // 标记为无效任务
+        }
     }
+
     return latestTask;
 }
