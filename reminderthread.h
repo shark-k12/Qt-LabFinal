@@ -25,13 +25,14 @@ protected:
 signals:
     // 检测到待提醒任务时触发（传递提醒文本）
     void reminder(const QString& msg);
+    void taskStatusChanged();
 
 private slots:
     // 定时检测任务
     void checkTasks();
 
 private:
-    QTimer *m_checkTimer;       // 定时检测定时器
+    QTimer *m_checkTimer = nullptr;       // 定时检测定时器
     int m_reminderThreshold;    // 提醒阈值（分钟，默认30）
 };
 

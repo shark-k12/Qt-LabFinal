@@ -49,11 +49,14 @@ MainWindow::MainWindow(QWidget *parent)
     initCategoryList();
     initStatPanel();
     initReminderThread();
+    initSystemTray();
     onRefresh();
 
     if (!TaskDBManager::getInstance()->isConnected()) {
         QMessageBox::critical(this, "错误", "数据库连接失败！");
     }
+
+    onTaskReminder("测试托盘通知：任务「测试1」将在2分钟后截止！");
 }
 
 void MainWindow::initUI()
@@ -109,6 +112,33 @@ MainWindow::~MainWindow()
     if (m_reminderThread) {
         delete m_reminderThread;
         m_reminderThread = nullptr;
+    }
+
+    if (m_systemTray) {
+        m_systemTray->hide(); // 隐藏托盘
+        delete m_systemTray;
+    }
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    // 1. 如果系统托盘可用，且用户点击的是窗口关闭按钮
+    if (m_systemTray && m_systemTray->isVisible()) {
+        // 2. 取消默认的关闭行为（不退出程序）
+        event->ignore();
+        // 3. 最小化窗口到托盘（隐藏主窗口）
+        this->hide();
+        m_systemTray->showMessage(
+            "程序已最小化",
+            "程序仍在后台运行，右键托盘图标可退出",
+            QSystemTrayIcon::Information,
+            2000
+            );
+        qDebug() << "🔸 窗口已最小化到托盘，未退出程序";
+    } else {
+        // 托盘不可用时，正常退出程序
+        event->accept();
+        qDebug() << "🔸 托盘不可用，程序正常退出";
     }
 }
 
@@ -252,12 +282,27 @@ void MainWindow::initStatPanel()
 void MainWindow::initReminderThread()
 {
     m_reminderThread = new ReminderThread(this);
-    // 绑定提醒信号到槽函数
+
+    // 1. 先绑定线程启动/结束日志（必须在start()前绑定）
+    connect(m_reminderThread, &QThread::started, this, []() {
+        qDebug() << "✅ 提醒线程正式启动（进入run()函数）";
+    });
+    connect(m_reminderThread, &QThread::finished, this, []() {
+        qDebug() << "❌ 提醒线程已结束（退出run()函数）";
+    });
+
+    // 2. 绑定提醒信号（跨线程必须加QueuedConnection）
     connect(m_reminderThread, &ReminderThread::reminder,
-            this, &MainWindow::onTaskReminder);
-    // 启动线程
+            this, &MainWindow::onTaskReminder,
+            Qt::QueuedConnection);
+
+    // 新增：任务状态变化时，自动更新最近任务状态栏
+    connect(m_reminderThread, &ReminderThread::taskStatusChanged,
+            this, &MainWindow::updateLatestTaskStatus, Qt::QueuedConnection);
+
+    // 3. 启动线程
     m_reminderThread->start();
-    qDebug() << "提醒线程已启动，默认阈值：30分钟";
+    qDebug() << "📢 发送线程启动指令，线程当前状态：" << (m_reminderThread->isRunning() ? "运行中" : "未运行");
 }
 
 void MainWindow::updateStatusBar(int total, int unfinished)
@@ -354,6 +399,62 @@ void MainWindow::updateLatestTaskStatus()
         );
 }
 
+void MainWindow::initSystemTray()
+{
+    // 1. 先检查系统是否支持托盘（必做）
+    if (!QSystemTrayIcon::isSystemTrayAvailable()) {
+        qDebug() << "❌ 当前系统不支持系统托盘功能";
+        QMessageBox::warning(this, "提示", "当前系统不支持系统托盘，将仅使用弹窗提醒！");
+        return;
+    }
+
+    // 2. 创建托盘图标（优先用Qt内置图标，避免自定义图标加载失败）
+    QIcon trayIcon = QIcon::fromTheme("dialog-information", QIcon(":/icons/info.png"));
+    m_systemTray = new QSystemTrayIcon(trayIcon, this);
+    m_systemTray->setToolTip("个人任务管理系统"); // 鼠标悬停提示
+
+    // 3. 创建托盘右键菜单
+    QMenu *trayMenu = new QMenu(this);
+    QAction *showWindowAct = new QAction("显示主窗口", this);
+    QAction *refreshAct = new QAction("刷新任务", this);
+    QAction *exitAct = new QAction("退出程序", this);
+
+    trayMenu->addAction(showWindowAct);
+    trayMenu->addAction(refreshAct);
+    trayMenu->addSeparator();
+    trayMenu->addAction(exitAct);
+
+    // 4. 绑定菜单事件
+    connect(showWindowAct, &QAction::triggered, this, [=]() {
+        this->showNormal();
+        this->raise(); // 置顶
+        this->activateWindow(); // 激活窗口
+    });
+    connect(refreshAct, &QAction::triggered, this, &MainWindow::onRefresh);
+    connect(exitAct, &QAction::triggered, this, [=]() {
+        // 1. 隐藏托盘
+        m_systemTray->hide();
+        // 2. 接受关闭事件，退出程序
+        this->closeEvent(new QCloseEvent()); // 触发关闭事件
+        qApp->quit(); // 强制退出应用程序
+        qDebug() << "🔸 从托盘退出，程序已关闭";
+    });
+
+    // 5. 绑定托盘点击事件（左键显示窗口）
+    connect(m_systemTray, &QSystemTrayIcon::activated, this, [=](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::Trigger) { // 左键单击
+            this->showNormal();
+            this->raise();
+            this->activateWindow();
+        }
+    });
+
+    // 6. 显示托盘（关键！必须调用show()）
+    m_systemTray->setContextMenu(trayMenu);
+    m_systemTray->show();
+
+    qDebug() << "✅ 系统托盘初始化成功，已显示在任务栏";
+}
 
 
 void MainWindow::onAddTask()
@@ -539,7 +640,47 @@ void MainWindow::onCategoryChanged(const QString& category)
 
 void MainWindow::onTaskReminder(const QString& msg)
 {
-    QMessageBox::information(this, "任务提醒", msg);
+    // 1. 托盘图标闪烁（核心：替代气泡通知，更醒目）
+    if (m_systemTray && m_systemTray->isVisible()) {
+        // 保存原图标
+        QIcon originalIcon = m_systemTray->icon();
+        // 闪烁3次（间隔500ms）
+        QTimer *flashTimer = new QTimer(this);
+        int flashCount = 0;
+        connect(flashTimer, &QTimer::timeout, this, [=]() mutable {
+            flashCount++;
+            if (flashCount % 2 == 0) {
+                m_systemTray->setIcon(originalIcon); // 显示原图标
+            } else {
+                m_systemTray->setIcon(QIcon::fromTheme("dialog-warning")); // 显示警告图标
+            }
+            // 闪烁3次后停止，恢复原图标
+            if (flashCount >= 6) {
+                flashTimer->stop();
+                flashTimer->deleteLater();
+                m_systemTray->setIcon(originalIcon);
+            }
+        });
+        flashTimer->start(500);
+    }
+
+    // 2. 必弹的QMessageBox（确保提醒被看到）
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle("⚠️ 任务提醒");
+    msgBox.setIcon(QMessageBox::Information);
+    msgBox.setText(msg);
+    msgBox.setWindowFlags(msgBox.windowFlags() | Qt::WindowStaysOnTopHint); // 置顶
+    msgBox.exec();
+
+    // 3. 状态栏永久提示（直到下一次提醒）
+    QLabel *reminderLabel = statusBar()->findChild<QLabel*>("reminderStatusLabel");
+    if (!reminderLabel) {
+        reminderLabel = new QLabel(this);
+        reminderLabel->setObjectName("reminderStatusLabel");
+        reminderLabel->setStyleSheet("color: #E53935; font-weight: bold;");
+        statusBar()->insertWidget(1, reminderLabel); // 插入到总任务统计左侧
+    }
+    reminderLabel->setText("提醒：" + msg.split("\n").first());
 }
 
 void MainWindow::onSetReminderThreshold()

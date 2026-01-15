@@ -14,6 +14,11 @@
 #include <QLabel>
 #include <QChartView>
 #include <QPieSeries>
+#include <QSystemTrayIcon>
+#include <QMenu>
+
+#include <windows.h>
+#include <shellapi.h>
 
 class MainWindow : public QMainWindow
 {
@@ -22,6 +27,9 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     QSqlTableModel *m_taskModel;
@@ -32,6 +40,8 @@ private:
     QLabel *m_totalLabel, *m_unfinishedLabel, *m_rateLabel; // 统计标签
     QChartView *m_pieChartView;           // 饼图
     ReminderThread *m_reminderThread;
+    QSystemTrayIcon *m_systemTray; // 系统托盘
+
 
 
     void initUI();                        // 整体UI
@@ -46,6 +56,7 @@ private:
     int countUnfinished(const QList<Task>& tasks);
     void refreshStatPanel();
     void updateLatestTaskStatus();
+    void initSystemTray(); // 初始化托盘
 
 private slots:
     void onAddTask();

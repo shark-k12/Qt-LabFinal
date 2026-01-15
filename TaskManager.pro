@@ -4,6 +4,8 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
 
+LIBS += -lshell32 -luser32
+
 # 设置QXlsx的路径（QXlsx文件夹和pro文件同级）
 QXLSX_PARENTPATH = ./QXlsx         # QXlsx根目录
 QXLSX_HEADERPATH = ./QXlsx/header/ # 头文件路径
